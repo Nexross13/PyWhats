@@ -26,6 +26,25 @@ def save_users(users):
 
 users = load_users()
 
+def whoIsConnected(clients):
+    connected_users = list(clients.keys())
+    formatted_list = "Utilisateurs connectés:\n" + "\n".join(f"   - {user}" for user in connected_users)
+    return formatted_list
+
+def login(username, password):
+    if username in users and users[username] == password:
+        return "Connexion réussie"
+    else:
+        return "Échec de connexion"
+    
+def register(username, password):
+    if username in users:
+        return "Nom d'utilisateur déjà pris"
+    else:
+        users[username] = password
+        save_users(users)
+        return "Compte créé avec succès"
+
 def handle_client(client):
     while True:
         try:
@@ -34,31 +53,23 @@ def handle_client(client):
 
             if data['type'] == 'login':
                 username, password = data['username'], data['password']
-                if username in users and users[username] == password:
+                if login(username, password):
                     client.send("Connexion réussie".encode())
                     clients[username] = client
-                    # Envoi de la liste des utilisateurs connectés
-                    connected_users = list(clients.keys())
-                    formatted_list = "Utilisateurs connectés:\n" + "\n".join(f"   - {user}" for user in connected_users)
-                    client.send(formatted_list.encode())
                 else:
                     client.send("Échec de connexion".encode())
 
             elif data['type'] == 'register':
                 username, password = data['username'], data['password']
-                if username in users:
+                if register(username, password):
                     client.send("Nom d'utilisateur déjà pris".encode())
                 else:
-                    users[username] = password
-                    save_users(users)
                     client.send("Compte créé avec succès".encode())
                     clients[username] = client
                     # Envoi de la liste des utilisateurs connectés
 
             elif data['type'] == 'connected':
-                connected_users = list(clients.keys())
-                formatted_list = "Utilisateurs connectés:\n" + "\n".join(f"   - {user}" for user in connected_users)
-                client.send(formatted_list.encode())
+                client.send(whoIsConnected(clients).encode())
                     
             elif data['type'] == 'message':
                 recipient = data['recipient']

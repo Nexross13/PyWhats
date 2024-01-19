@@ -57,8 +57,9 @@ while True:
         recipient = input("Entrez le destinataire : ")
         sender = username 
         
+        print("Entrez votre message (ou 'exit' pour quitter) :")
         while True:
-            message = input("Entrez votre message (ou 'exit' pour quitter) : ")
+            message = input("Entrez votre message: ")
             if message.lower() == 'exit':
                 break  # Quitter la conversation
             try:
