@@ -11,12 +11,12 @@ def update_profile(username):
     match choix :
         case '1':
             new_username = input("Entrez le nouveau nom d'utilisateur : ")
-            data = {'type': 'update', 'code': 'username', 'old_username': username, 'new_username': new_username}
+            data = {'type': 'update', 'code': 'username', 'sender': username, 'new_username': new_username}
             client.send(json.dumps(data).encode())
         
         case '2':
             new_password = input("Entrez le nouveau mot de passe : ")
-            data = {'type': 'update', 'code': 'password', 'password': new_password}
+            data = {'type': 'update', 'code': 'password', 'sender': username, 'password': new_password}
             client.send(json.dumps(data).encode())
         
         case '3':

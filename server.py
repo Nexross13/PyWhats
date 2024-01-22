@@ -49,11 +49,20 @@ def register(username, password):
 
 def update_profile(data):
     if data['code'] == 'username':
-        old_username = data['old_username']
+        old_username = data['sender']
         new_username = data['new_username']
         users[new_username] = users.pop(old_username)
         clients[new_username] = clients.pop(old_username)
         save_users(users)
+
+    elif data['code'] == 'password':
+        username = data['sender']
+        new_password = data['password']
+        users[username] = new_password
+        save_users(users)
+    
+    else:
+        print("Code invalide")
 
 def handle_client(client):
     while True:
