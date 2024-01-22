@@ -5,6 +5,7 @@ import os
 
 # Configuration initiale du serveur
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('', 12345))
 server.listen()
 
@@ -38,12 +39,21 @@ def login(username, password):
         return "Échec de connexion"
     
 def register(username, password):
+    print(users)
     if username in users:
-        return "Nom d'utilisateur déjà pris"
+        return False
     else:
         users[username] = password
         save_users(users)
-        return "Compte créé avec succès"
+        return True
+
+def update_profile(data):
+    if data['code'] == 'username':
+        old_username = data['old_username']
+        new_username = data['new_username']
+        users[new_username] = users.pop(old_username)
+        clients[new_username] = clients.pop(old_username)
+        save_users(users)
 
 def handle_client(client):
     while True:
@@ -51,32 +61,35 @@ def handle_client(client):
             msg = client.recv(1024).decode()
             data = json.loads(msg)
 
-            if data['type'] == 'login':
-                username, password = data['username'], data['password']
-                if login(username, password):
-                    client.send("Connexion réussie".encode())
-                    clients[username] = client
-                else:
-                    client.send("Échec de connexion".encode())
+            match data['type']:
+                case 'login':
+                    username, password = data['username'], data['password']
+                    if login(username, password):
+                        client.send("Connexion réussie".encode())
+                        clients[username] = client
+                    else:
+                        client.send("Échec de connexion".encode())
+                
+                case 'register':
+                    username, password = data['username'], data['password']
+                    if not register(username, password):
+                        client.send("Nom d'utilisateur déjà pris".encode())
+                    else:
+                        client.send("Compte créé avec succès".encode())
+                        clients[username] = client
 
-            elif data['type'] == 'register':
-                username, password = data['username'], data['password']
-                if register(username, password):
-                    client.send("Nom d'utilisateur déjà pris".encode())
-                else:
-                    client.send("Compte créé avec succès".encode())
-                    clients[username] = client
-                    # Envoi de la liste des utilisateurs connectés
-
-            elif data['type'] == 'connected':
-                client.send(whoIsConnected(clients).encode())
-                    
-            elif data['type'] == 'message':
-                recipient = data['recipient']
-                if recipient in clients:
-                    clients[recipient].send(json.dumps(data).encode())
-                else:
-                    client.send("Destinataire non connecté".encode())
+                case 'connected':
+                    client.send(whoIsConnected(clients).encode())
+                
+                case 'message':
+                    recipient = data['recipient']
+                    if recipient in clients:
+                        clients[recipient].send(json.dumps(data).encode())
+                    else:
+                        client.send("Destinataire non connecté".encode())
+                
+                case 'update':
+                    update_profile(data)
 
         except:
             # Gérer la déconnexion d'un client

@@ -2,6 +2,29 @@ import socket
 import json
 import threading
 
+def update_profile(username):
+    print("\nMenu :")
+    print("1. Modifier le nom d'utilisateur")
+    print("2. Modifier le mot de passe")
+    print("3. exit")
+    choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
+    match choix :
+        case '1':
+            new_username = input("Entrez le nouveau nom d'utilisateur : ")
+            data = {'type': 'update', 'code': 'username', 'old_username': username, 'new_username': new_username}
+            client.send(json.dumps(data).encode())
+        
+        case '2':
+            new_password = input("Entrez le nouveau mot de passe : ")
+            data = {'type': 'update', 'code': 'password', 'password': new_password}
+            client.send(json.dumps(data).encode())
+        
+        case '3':
+            print('')
+
+        case _:
+            print("Choix invalide. Veuillez réessayer.")    
+
 def receive_message(client):
     while True:
         try:
@@ -50,34 +73,38 @@ while True:
     print("\nMenu :")
     print("1. Envoyer un message")
     print("2. Voir qui est connecté")
-    print("3. Se déconnecter")
+    print("3. Modifier son profil")
+    print("4. Se déconnecter")
     choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
 
-    if choix == '1':
-        recipient = input("Entrez le destinataire : ")
-        sender = username 
-        
-        print("Entrez votre message (ou 'exit' pour quitter) :")
-        while True:
-            message = input("Entrez votre message: ")
-            if message.lower() == 'exit':
-                break  # Quitter la conversation
-            try:
-                data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message}
-                client.send(json.dumps(data).encode())
-            except Exception as e:
-                print(f"Une erreur s'est produite lors de l'envoi du message: {e}")
-                break
+    match choix :
+        case '1':
+            recipient = input("Entrez le destinataire : ")
+            sender = username 
+            
+            print("Entrez votre message (ou 'exit' pour quitter) :")
+            while True:
+                message = input("Pour ", recipient, ": ")
+                if message.lower() == 'exit':
+                    break  # Quitter la conversation
+                try:
+                    data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message}
+                    client.send(json.dumps(data).encode())
+                except Exception as e:
+                    print(f"Une erreur s'est produite lors de l'envoi du message: {e}")
+                    break
 
-    elif choix == '2':
-        data = {'type': 'connected'}
-        client.send(json.dumps(data).encode())
+        case '2':
+            data = {'type': 'connected'}
+            client.send(json.dumps(data).encode())
 
+        case '3':
+            update_profile(username)
 
-    elif choix == '3':
-        print("Déconnexion...")
-        break
-    else:
-        print("Choix invalide. Veuillez réessayer.")
+        case '4':
+            print("Déconnexion...")
+            break
+        case _:
+            print("Choix invalide. Veuillez réessayer.")
 
 client.close()
