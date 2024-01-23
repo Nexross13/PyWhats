@@ -114,10 +114,17 @@ def handle_client(client):
                         file_transfer(data)
                     else:
                         client.send("Destinataire non connecté".encode())
+                    
+                case 'logout':
+                    username = data['sender']
+                    client.close()
+                    del addresses[client]
+                    del clients[username]
+                    print(f"{username} s'est déconnecté.")
+                    break
 
         except:
             # Gérer la déconnexion d'un client
-            client.close()
             break
 
 def accept_connections():

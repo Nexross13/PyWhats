@@ -1,8 +1,10 @@
+from asyncio import sleep
 import base64
 import os
 import socket
 import json
 import threading
+import time
 
 def update_profile(username):
     print("\nMenu :")
@@ -39,6 +41,7 @@ def send_file(username):
     client.send(json.dumps(data).encode())
 
     print("Fichier envoyé")
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def receive_file(data):
     # Première étape: le client reçoit les données du fichier
@@ -51,6 +54,23 @@ def receive_file(data):
     os.replace(filename, f"received_{filename}")
     print(f"Vous avez reçu un fichier de la part de {data['sender']}")
 
+def send_message(username):
+    recipient = input("Entrez le destinataire : ")
+    sender = username 
+    
+    print("Entrez votre message (ou 'exit' pour quitter) :")
+    while True:
+        message = input(f"Pour {recipient}: ")
+        if message.lower() == 'exit':
+            os.system('cls' if os.name == 'nt' else 'clear')
+            break  # Quitter la conversation
+        try:
+            data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message, 'time': time.strftime("%H:%M:%S")}
+            client.send(json.dumps(data).encode())
+        except Exception as e:
+            print(f"Une erreur s'est produite lors de l'envoi du message: {e}")
+            break
+
 def receive_message(client):
     while True:
         try:
@@ -60,7 +80,8 @@ def receive_message(client):
                 try:
                     msg_data = json.loads(msg)
                     if 'sender' in msg_data and 'message' in msg_data:
-                        formatted_msg = f"[{msg_data['sender']}] : {msg_data['message']}"
+                        time = str(msg_data['time'])
+                        formatted_msg = f"[{time}] - {msg_data['sender']} : {msg_data['message']}"
                         print(formatted_msg)
                     
                     elif 'sender' in msg_data and 'filename' in msg_data:
@@ -82,6 +103,15 @@ client.connect(('127.0.0.1', 12345))
 
 # Processus d'authentification
 while True:
+    print(" _____         __          __ _             _")
+    print("|  __ \        \ \        / /| |           | |")
+    print("| |__) | _   _  \ \  /\  / / | |__    __ _ | |_  ___")
+    print("|  ___/ | | | |  \ \/  \/ /  | '_ \  / _` || __|/ __| ")
+    print("| |     | |_| |   \  /\  /   | | | || (_| || |_|\__ \ ")
+    print("|_|      \__, |    \/  \/    |_| |_| \__,_| \__||___/")
+    print("          __/ |")
+    print("         |___/")
+    print("--------------------------------------------------------")
     action = input("Voulez-vous vous connecter (login) ou créer un compte (register)? ")
     username = input("Nom d'utilisateur: ")
     password = input("Mot de passe: ")
@@ -92,6 +122,14 @@ while True:
         response = client.recv(1024).decode()
         print(response)
         if "Connexion réussie" in response or "Compte créé avec succès" in response:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print(" ____   _")
+            print("|  _ \ (_)")
+            print("| |_) | _   ___  _ __  __   __  ___  _ __   _   _   ___")
+            print("|  _ < | | / _ \| '_ \ \ \ / / / _ \| '_ \ | | | | / _ \ ")
+            print("| |_) || ||  __/| | | | \ V / |  __/| | | || |_| ||  __/")
+            print("|____/ |_| \___||_| |_|  \_/   \___||_| |_| \__,_| \___|")
+            print("--------------------------------------------------------")
             break
 
 # Lancement du thread de réception des messages après authentification
@@ -106,36 +144,29 @@ while True:
     print("4. Modifier son profil")
     print("5. Se déconnecter")
     choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
+    os.system('cls' if os.name == 'nt' else 'clear')
 
     match choix :
         case '1':
-            recipient = input("Entrez le destinataire : ")
-            sender = username 
-            
-            print("Entrez votre message (ou 'exit' pour quitter) :")
-            while True:
-                message = input(f"Pour {recipient}: ")
-                if message.lower() == 'exit':
-                    break  # Quitter la conversation
-                try:
-                    data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message}
-                    client.send(json.dumps(data).encode())
-                except Exception as e:
-                    print(f"Une erreur s'est produite lors de l'envoi du message: {e}")
-                    break
+            send_message(username)
+
         case '2':
             send_file(username)
 
         case '3':
             data = {'type': 'connected'}
             client.send(json.dumps(data).encode())
+            sleep(3)
 
         case '4':
             update_profile(username)
 
         case '5':
+            data = {'type': 'logout', 'sender': username}
+            client.send(json.dumps(data).encode())
             print("Déconnexion...")
             break
+
         case _:
             print("Choix invalide. Veuillez réessayer.")
 
