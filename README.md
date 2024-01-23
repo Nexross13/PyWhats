@@ -19,6 +19,11 @@ Le but est de concevoir et implémenter un service de messagerie instantanée en
 
 
 ## UPDATES
+### Update 23/01/2024 -> V4
+- **Ajout** : NULL
+- **Modification** : Possibilité d'envoie d'image
+- **Prochains ajouts** : Historisation des conversation
+
 ### Update 23/01/2024 -> V3
 - **Ajout** : NULL
 - **Modification** : Correction du bug de déconnexion puis reconnexion

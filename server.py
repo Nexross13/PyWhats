@@ -66,9 +66,10 @@ def update_profile(data):
 
 def file_transfer(data):
     # Première étape: le serveur reçoit les données du fichier
-    print("Fichier en cours de transfert...")
+    print("Fichier en cours de récéption...")
     print("Fichier reçu")
     # Deuxième étape: le serveur envoie les données du fichier au destinataire
+    print("Fichier en cours d'envoi...")
     clients[data['recipient']].send(json.dumps(data).encode())
     print("Fichier envoyé")
 
@@ -76,7 +77,7 @@ def file_transfer(data):
 def handle_client(client):
     while True:
         try:
-            msg = client.recv(1024).decode()
+            msg = client.recv(100000000).decode()
             data = json.loads(msg)
 
             match data['type']:

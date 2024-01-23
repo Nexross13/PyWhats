@@ -31,28 +31,61 @@ def update_profile(username):
 
 def send_file(username):
     recipient = input("Entrez le destinataire : ")
-    sender = username 
-    filename = input("Entrez le nom du fichier : ")
-    data = {'type': 'file', 'sender': sender, 'recipient': recipient, 'filename': filename}
-    with open(filename, 'r') as file:
-        content = file.read(4096)
+    sender = username
+    filename = ''
+    while True:
+        file = input("Entrez le nom du fichier : ")
+        for i in range(len(file)):
+            if file[i] == '.':
+                extension = file[i:]
+                break
+            else :
+                filename += file[i]
+
+        print(filename)
+        print(extension)
+        
+        try:
+            match extension:
+                case '.txt':
+                    with open(file, 'r') as file:
+                        content = file.read(10000000)
+                    break
+
+                case '.png':
+                    with open(file, 'rb') as file:
+                        content = file.read(10000000)
+                        content = base64.b64encode(content).decode()
+                    break
+
+        except FileNotFoundError:
+            print("Fichier introuvable. Veuillez réessayer.")
     
-    data['content'] = content
+    data = {'type': 'file', 'sender': sender, 'recipient': recipient, 'filename': filename, 'extension':extension, 'content': content}
+
     client.send(json.dumps(data).encode())
 
     print("Fichier envoyé")
-    os.system('cls' if os.name == 'nt' else 'clear')
 
 def receive_file(data):
     # Première étape: le client reçoit les données du fichier
     print("Fichier en cours de transfert...")
     # Deuxième étape: le client enregistre les données du fichier
     filename = data['filename']
+    extension = data['extension']
     content = data['content']
-    with open(filename, 'w') as file:
-        file.write(content)
-    os.replace(filename, f"received_{filename}")
-    print(f"Vous avez reçu un fichier de la part de {data['sender']}")
+    file = filename + extension
+    match extension:
+        case '.txt':
+            with open(file, 'w') as f:
+                f.write(content)
+        
+        case '.png':
+            with open(file, 'wb') as f:
+                f.write(base64.b64decode(content))
+
+    os.replace(file, f"received_{file}")
+    print(f"Vous avez reçu un fichier de la part de {data['sender']} -> {filename}{extension}")
 
 def send_message(username):
     recipient = input("Entrez le destinataire : ")
@@ -74,7 +107,7 @@ def send_message(username):
 def receive_message(client):
     while True:
         try:
-            msg = client.recv(1024).decode()
+            msg = client.recv(10000000).decode()
             if msg:
                 # Modification ici pour formatter correctement les messages reçus
                 try:
@@ -102,16 +135,17 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect(('127.0.0.1', 12345))
 
 # Processus d'authentification
+print(" _____         __          __ _             _")
+print("|  __ \        \ \        / /| |           | |")
+print("| |__) | _   _  \ \  /\  / / | |__    __ _ | |_  ___")
+print("|  ___/ | | | |  \ \/  \/ /  | '_ \  / _` || __|/ __| ")
+print("| |     | |_| |   \  /\  /   | | | || (_| || |_|\__ \ ")
+print("|_|      \__, |    \/  \/    |_| |_| \__,_| \__||___/")
+print("          __/ |")
+print("         |___/")
+print("--------------------------------------------------------")
 while True:
-    print(" _____         __          __ _             _")
-    print("|  __ \        \ \        / /| |           | |")
-    print("| |__) | _   _  \ \  /\  / / | |__    __ _ | |_  ___")
-    print("|  ___/ | | | |  \ \/  \/ /  | '_ \  / _` || __|/ __| ")
-    print("| |     | |_| |   \  /\  /   | | | || (_| || |_|\__ \ ")
-    print("|_|      \__, |    \/  \/    |_| |_| \__,_| \__||___/")
-    print("          __/ |")
-    print("         |___/")
-    print("--------------------------------------------------------")
+    
     action = input("Voulez-vous vous connecter (login) ou créer un compte (register)? ")
     username = input("Nom d'utilisateur: ")
     password = input("Mot de passe: ")
