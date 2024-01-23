@@ -34,9 +34,9 @@ def whoIsConnected(clients):
 
 def login(username, password):
     if username in users and users[username] == password:
-        return "Connexion réussie"
+        return True
     else:
-        return "Échec de connexion"
+        return False
     
 def register(username, password):
     print(users)
@@ -64,6 +64,15 @@ def update_profile(data):
     else:
         print("Code invalide")
 
+def file_transfer(data):
+    # Première étape: le serveur reçoit les données du fichier
+    print("Fichier en cours de transfert...")
+    print("Fichier reçu")
+    # Deuxième étape: le serveur envoie les données du fichier au destinataire
+    clients[data['recipient']].send(json.dumps(data).encode())
+    print("Fichier envoyé")
+
+
 def handle_client(client):
     while True:
         try:
@@ -73,7 +82,7 @@ def handle_client(client):
             match data['type']:
                 case 'login':
                     username, password = data['username'], data['password']
-                    if login(username, password):
+                    if login(username, password) and username not in clients:
                         client.send("Connexion réussie".encode())
                         clients[username] = client
                     else:
@@ -99,6 +108,12 @@ def handle_client(client):
                 
                 case 'update':
                     update_profile(data)
+
+                case 'file':
+                    if data['recipient'] in clients:
+                        file_transfer(data)
+                    else:
+                        client.send("Destinataire non connecté".encode())
 
         except:
             # Gérer la déconnexion d'un client
