@@ -17,11 +17,13 @@ def update_profile(username):
             new_username = input("Entrez le nouveau nom d'utilisateur : ")
             data = {'type': 'update', 'code': 'username', 'sender': username, 'new_username': new_username}
             client.send(json.dumps(data).encode())
+            return new_username 
         
         case '2':
             new_password = input("Entrez le nouveau mot de passe : ")
             data = {'type': 'update', 'code': 'password', 'sender': username, 'password': new_password}
             client.send(json.dumps(data).encode())
+            return "Null"
         
         case '3':
             print('')
@@ -41,13 +43,18 @@ def send_file(username):
                 break
             else :
                 filename += file[i]
-
-        print(filename)
-        print(extension)
+        
+        if extension is None:
+            extension = '.notxt'
         
         try:
             match extension:
                 case '.txt':
+                    with open(file, 'r') as file:
+                        content = file.read(10000000)
+                    break
+                
+                case '.notxt':
                     with open(file, 'r') as file:
                         content = file.read(10000000)
                     break
@@ -56,6 +63,29 @@ def send_file(username):
                     with open(file, 'rb') as file:
                         content = file.read(10000000)
                         content = base64.b64encode(content).decode()
+                    break
+
+                case '.jpg':
+                    with open(file, 'rb') as file:
+                        content = file.read(10000000)
+                        content = base64.b64encode(content).decode()
+                    break
+
+                case '.jpeg':
+                    with open(file, 'rb') as file:
+                        content = file.read(10000000)
+                        content = base64.b64encode(content).decode()
+                    break
+
+                case '.pdf':
+                    with open(file, 'rb') as file:
+                        content = file.read(10000000)
+                        content = base64.b64encode(content).decode()
+                    break
+
+                case _:
+                    with open(file, 'r') as file:
+                        content = file.read(10000000)
                     break
 
         except FileNotFoundError:
@@ -74,15 +104,40 @@ def receive_file(data):
     filename = data['filename']
     extension = data['extension']
     content = data['content']
-    file = filename + extension
+
+    if extension == '.notxt':
+        file = filename
+    else:
+        file = filename + extension
+
     match extension:
         case '.txt':
+            with open(file, 'w') as f:
+                f.write(content)
+
+        case '.notxt':
             with open(file, 'w') as f:
                 f.write(content)
         
         case '.png':
             with open(file, 'wb') as f:
                 f.write(base64.b64decode(content))
+
+        case '.jpg':
+            with open(file, 'wb') as f:
+                f.write(base64.b64decode(content))
+
+        case '.jpeg':
+            with open(file, 'wb') as f:
+                f.write(base64.b64decode(content))
+
+        case '.pdf':
+            with open(file, 'wb') as f:
+                f.write(base64.b64decode(content))
+
+        case _:
+            with open(file, 'w') as f:
+                f.write(content)
 
     os.replace(file, f"received_{file}")
     print(f"Vous avez reçu un fichier de la part de {data['sender']} -> {filename}{extension}")
@@ -193,7 +248,9 @@ while True:
             sleep(3)
 
         case '4':
-            update_profile(username)
+            newUpdate = update_profile(username)
+            if newUpdate != "Null":
+                username = newUpdate
 
         case '5':
             data = {'type': 'logout', 'sender': username}

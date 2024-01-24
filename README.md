@@ -19,6 +19,11 @@ Le but est de concevoir et implémenter un service de messagerie instantanée en
 
 
 ## UPDATES
+### Update 24/01/2024 -> V5
+- **Ajout** : Vérification lors de l'update du username si le nouveau nom est déjà utilisé ou non
+- **Modification** : Correction de l'affichage de l'emetteur du message lors de la modification du username
+- **Prochains ajouts** : Historisation des conversation
+
 ### Update 23/01/2024 -> V4
 - **Ajout** : NULL
 - **Modification** : Possibilité d'envoie d'image

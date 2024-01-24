@@ -39,7 +39,6 @@ def login(username, password):
         return False
     
 def register(username, password):
-    print(users)
     if username in users:
         return False
     else:
@@ -48,7 +47,7 @@ def register(username, password):
         return True
 
 def update_profile(data):
-    if data['code'] == 'username':
+    if data['code'] == 'username' and data['new_username'] not in users:
         old_username = data['sender']
         new_username = data['new_username']
         users[new_username] = users.pop(old_username)
@@ -62,7 +61,7 @@ def update_profile(data):
         save_users(users)
     
     else:
-        print("Code invalide")
+        print("Nom d'utilisateur déjà pris")
 
 def file_transfer(data):
     # Première étape: le serveur reçoit les données du fichier
