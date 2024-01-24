@@ -37,7 +37,11 @@ def send_file(username):
     filename = ''
     extension = ''
     while True:
-        file = input("Entrez le nom du fichier : ")
+        file = input("Entrez le nom du fichier (exit pour quitter): ")
+        
+        if file == 'exit':
+            break
+
         for i in range(len(file)):
             if file[i] == '.':
                 extension = file[i:]
