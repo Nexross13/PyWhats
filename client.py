@@ -35,6 +35,7 @@ def send_file(username):
     recipient = input("Entrez le destinataire : ")
     sender = username
     filename = ''
+    extension = ''
     while True:
         file = input("Entrez le nom du fichier : ")
         for i in range(len(file)):
@@ -89,6 +90,7 @@ def send_file(username):
                     break
 
         except FileNotFoundError:
+            filename = ''
             print("Fichier introuvable. Veuillez réessayer.")
     
     data = {'type': 'file', 'sender': sender, 'recipient': recipient, 'filename': filename, 'extension':extension, 'content': content}

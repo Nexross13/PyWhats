@@ -7,7 +7,6 @@ Le but est de concevoir et implémenter un service de messagerie instantanée en
 
 ## Features
 - Création et connexion compte user
-
 ![image](img/1.png)
 
 - Envoie de message et de fichier (txt)

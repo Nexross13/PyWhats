@@ -9,6 +9,8 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('', 12345))
 server.listen()
 
+cond = threading.Condition()
+
 clients = {}
 addresses = {}
 
@@ -53,15 +55,18 @@ def update_profile(data):
         users[new_username] = users.pop(old_username)
         clients[new_username] = clients.pop(old_username)
         save_users(users)
+        clients[data['sender']].send("Username MaJ".encode())
 
     elif data['code'] == 'password':
         username = data['sender']
         new_password = data['password']
         users[username] = new_password
         save_users(users)
+        clients[data['sender']].send("Password MaJ".encode())
     
     else:
-        print("Nom d'utilisateur déjà pris")
+        clients[data['sender']].send("Échec de la mise à jour".encode())
+    
 
 def file_transfer(data):
     # Première étape: le serveur reçoit les données du fichier
