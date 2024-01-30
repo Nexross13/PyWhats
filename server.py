@@ -1,143 +1,208 @@
+import json
+import select
 import socket
 import threading
-import json
-import os
-
-# Configuration initiale du serveur
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind(('', 12345))
-server.listen()
-
-cond = threading.Condition()
 
 clients = {}
-addresses = {}
 
-# Fonction pour charger les utilisateurs depuis users.json
-def load_users():
-    if os.path.exists("users.json"):
-        with open("users.json", "r") as file:
-            return json.load(file)
-    else:
-        return {}
+def Debug(message):
+    print("[DEBUG] : ", message)
 
-# Fonction pour sauvegarder les utilisateurs dans users.json
-def save_users(users):
-    with open("users.json", "w") as file:
-        json.dump(users, file)
+def ConnexionOpen():
+    print("   _____                             ____                   ")
+    print("  / ____|                           / __ \                  ")
+    print(" | (___   ___ _ ____   _____ _ __  | |  | |_ __   ___ _ __  ")
+    print("  \___ \ / _ \ '__\ \ / / _ \ '__| | |  | | '_ \ / _ \ '_ \ ")
+    print("  ____) |  __/ |   \ V /  __/ |    | |__| | |_) |  __/ | | |")
+    print(" |_____/ \___|_|    \_/ \___|_|     \____/| .__/ \___|_| |_|")
+    print("                                          | |               ")
+    print("----------------------------------------- |_| --------------")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(('', 12345))
+    server.listen()
+    return server
 
-users = load_users()
-
-def whoIsConnected(clients):
-    connected_users = list(clients.keys())
-    formatted_list = "Utilisateurs connectés:\n" + "\n".join(f"   - {user}" for user in connected_users)
-    return formatted_list
-
-def login(username, password):
+def Login(client, username, password):
+    Debug("Begin login...")
+    with open("users.json", "r") as file:
+        users = json.load(file)
+        file.close()
+    
+    Debug("Begin search...")
     if username in users and users[username] == password:
+        clients[username] = client
+        Debug(f"User {username} has been successfully logged in")
         return True
     else:
+        Debug("User not found")
         return False
+
+def Register(client, username, password):
+    isEmpty = False
+    users = {}
+    Debug("Current record...")
+    with open("users.json", "r") as file:
+        file_content = file.read()
+        if file_content == '':
+            Debug("File is empty")
+            isEmpty = True
+        else:
+            Debug("File is not empty")
+            users = json.loads(file_content)
+        file.close()
     
-def register(username, password):
-    if username in users:
-        return False
+    if isEmpty == False:
+        Debug("Begin search...")
+        if username in users:
+            Debug("User already exists")
+            return False
+        else:
+            Debug("User not found, adding...")
+            users[username] = password
+            Debug("Writing to file...")
+            with open("users.json", "w") as file:
+                json.dump(users, file)
+                file.close()
+            Debug("Adding client to dictionnary...")
+            clients[username] = client
+            Debug(f"User {username} hase been successfully added to database")
+            return True
     else:
+        Debug("File is empty, adding first user...")
         users[username] = password
-        save_users(users)
+        with open("users.json", "w") as file:
+            json.dump(users, file)
+            file.close()
+        clients[username] = client
+        Debug(f"User {username} has been successfully added to database")
         return True
 
-def update_profile(data):
-    if data['code'] == 'username' and data['new_username'] not in users:
-        old_username = data['sender']
-        new_username = data['new_username']
-        users[new_username] = users.pop(old_username)
-        clients[new_username] = clients.pop(old_username)
-        save_users(users)
-        clients[data['sender']].send("Username MaJ".encode())
-
-    elif data['code'] == 'password':
-        username = data['sender']
-        new_password = data['password']
-        users[username] = new_password
-        save_users(users)
-        clients[data['sender']].send("Password MaJ".encode())
+def UpdateUsername(old_username, new_username):
+    with open("users.json", "r") as file:
+        users = json.load(file)
+        file.close()
     
-    else:
-        clients[data['sender']].send("Échec de la mise à jour".encode())
+    for user in users:
+        if user['username'] == new_username:
+            return False
+        else:
+            user['username'] = new_username
+            with open("users.json", "w") as file:
+                json.dump(users, file)
+                file.close()
+            clients[new_username] = clients.pop(old_username)
+            return True
+        
+def UpdatePassword(username, password):
+    with open("users.json", "r") as file:
+        users = json.load(file)
+        file.close()
     
+    for user in users:
+        if user['username'] == username:
+            user['password'] = password
+            with open("users.json", "w") as file:
+                json.dump(users, file)
+                file.close()
+            return True
+        else:
+            return False
+    
+def SendToClient(client, sender, recipient, message):
+    for client in clients:
+        if clients[client] == recipient:
+            data = {'type': 'message', 'sender': sender, 'message': message}
+            clients[recipient].send(json.dump(data).encode())
 
-def file_transfer(data):
-    # Première étape: le serveur reçoit les données du fichier
-    print("Fichier en cours de récéption...")
-    print("Fichier reçu")
-    # Deuxième étape: le serveur envoie les données du fichier au destinataire
-    print("Fichier en cours d'envoi...")
-    clients[data['recipient']].send(json.dumps(data).encode())
-    print("Fichier envoyé")
+def SendFile(client, sender, recipient, filename, extension, file):
+    for client in clients:
+        if clients[client] == recipient:
+            data = {'type': 'file', 'sender': sender, 'filename': filename, 'extension': extension, 'file': file}
+            client.send(json.dump(data).encode())
 
-
-def handle_client(client):
+def HandleClient(client):
     while True:
         try:
-            msg = client.recv(100000000).decode()
-            data = json.loads(msg)
-
-            match data['type']:
-                case 'login':
-                    username, password = data['username'], data['password']
-                    if login(username, password) and username not in clients:
-                        client.send("Connexion réussie".encode())
-                        clients[username] = client
+            data = client.recv(100000).decode()
+            data = json.loads(data)
+            type = data['type']
+            match type:
+                case "login":
+                    Debug("Received login request")
+                    username = data['username']
+                    password = data['password']
+                    if Login(client, username, password):
+                        client.send("OK".encode())
                     else:
-                        client.send("Échec de connexion".encode())
-                
-                case 'register':
-                    username, password = data['username'], data['password']
-                    if not register(username, password):
-                        client.send("Nom d'utilisateur déjà pris".encode())
-                    else:
-                        client.send("Compte créé avec succès".encode())
-                        clients[username] = client
+                        client.send("KO".encode())
 
-                case 'connected':
-                    client.send(whoIsConnected(clients).encode())
-                
-                case 'message':
+                case "register":
+                    print("Received register request")
+                    print(data)
+                    username = data['username']
+                    password = data['password']
+                    if Register(client, username, password):
+                        client.send("OK".encode())
+                    else:
+                        client.send("KO".encode())
+
+                case "message":
+                    sender = data['sender']
                     recipient = data['recipient']
-                    if recipient in clients:
-                        clients[recipient].send(json.dumps(data).encode())
-                    else:
-                        client.send("Destinataire non connecté".encode())
-                
-                case 'update':
-                    update_profile(data)
+                    message = data['message']
+                    SendToClient(client, sender, recipient, message)
 
-                case 'file':
-                    if data['recipient'] in clients:
-                        file_transfer(data)
+                case "update_username":
+                    old_username = data['username']
+                    new_username = data['newUsername']
+                    if UpdateUsername(old_username, new_username):
+                        client.send("OK".encode())
                     else:
-                        client.send("Destinataire non connecté".encode())
+                        client.send("KO".encode())
+
+                case "update_password":
+                    username = data['username']
+                    password = data['newPassword']
+                    if UpdatePassword(username, password):
+                        client.send("OK".encode())
+                    else:
+                        client.send("KO".encode())
+
+                case "file":
+                    sender = data['sender']
+                    recipient = data['recipient']
+                    filename = data['filename']
+                    extension = data['extension']
+                    file = data['file']
+                    SendFile(client, sender, recipient, filename, extension, file)
+
+                case "is_connected":
+                    username = data['recipient']
+                    Debug(f"Checking if {username} is connected...")
+                    if username in clients:
+                        Debug(f"{username} is connected")
+                        client.send("OK".encode())
+                        
+                    else:
+                        Debug(f"{username} is not connected")
+                        client.send("KO".encode())
                     
-                case 'logout':
-                    username = data['sender']
-                    client.close()
-                    del addresses[client]
-                    del clients[username]
-                    print(f"{username} s'est déconnecté.")
-                    break
+                    Debug("End of check")
 
-        except:
-            # Gérer la déconnexion d'un client
+                case _:
+                    print("Type de message inconnu")
+
+        except Exception as e:
+            print(e)
             break
 
-def accept_connections():
+def Main():
+    server = ConnexionOpen()
     while True:
-        client, client_address = server.accept()
-        print(f"{client_address} s'est connecté.")
-        addresses[client] = client_address
-        threading.Thread(target=handle_client, args=(client,)).start()
+        client, address = server.accept()
+        print("Connexion de " + str(client))
+        threading.Thread(target=HandleClient, args=(client, )).start()
 
-print("Le serveur est démarré...")
-accept_connections()
+if __name__ == "__main__":
+    Main()

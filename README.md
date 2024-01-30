@@ -18,6 +18,11 @@ Le but est de concevoir et implémenter un service de messagerie instantanée en
 
 
 ## UPDATES
+### Update 30/01/2024 -> V5.1
+**Refonte totale du code, voir branche new_version**
+
+**Bugs**: après une connexion, la fonction isconnected ne receoit rien de sendtosocket car cette derniere recoit rien de receivesocket alors que lui envoie bien une data
+
 ### Update 24/01/2024 -> V5
 - **Ajout** : Vérification lors de l'update du username si le nouveau nom est déjà utilisé ou non
 - **Modification** : Correction de l'affichage de l'emetteur du message lors de la modification du username

@@ -1,46 +1,64 @@
-from asyncio import sleep
 import base64
+import json
 import os
 import socket
-import json
 import threading
-import time
 
-def update_profile(username):
-    print("\nMenu :")
-    print("1. Modifier le nom d'utilisateur")
-    print("2. Modifier le mot de passe")
-    print("3. exit")
-    choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
-    match choix :
-        case '1':
-            new_username = input("Entrez le nouveau nom d'utilisateur : ")
-            data = {'type': 'update', 'code': 'username', 'sender': username, 'new_username': new_username}
-            client.send(json.dumps(data).encode())
-            return new_username 
-        
-        case '2':
-            new_password = input("Entrez le nouveau mot de passe : ")
-            data = {'type': 'update', 'code': 'password', 'sender': username, 'password': new_password}
-            client.send(json.dumps(data).encode())
-            return "Null"
-        
-        case '3':
-            print('')
+dataUser = []
 
-        case _:
-            print("Choix invalide. Veuillez réessayer.")
+def ConnexionServer():
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect(('127.0.0.1', 12345))
+    return client
 
-def send_file(username):
-    recipient = input("Entrez le destinataire : ")
-    sender = username
+def Login(client):
+    type  = "login"
+    username = input("Nom d'utilisateur: ")
+    password = input("Mot de passe: ")
+    data = {'type': type, 'username': username, 'password': password}
+    data = json.dumps(data)
+    if SendToSocket(client, data) == "OK":
+        dataUser.append((username, password))
+        return True
+    else:
+        return False
+
+def Register(client):
+    type = "register"
+    username = input("Nom d'utilisateur: ")
+    password = input("Mot de passe: ")
+    data = {'type': type, 'username': username, 'password': password}
+    data = json.dumps(data)
+    if SendToSocket(client, data) == "OK":
+        dataUser.append((username, password))
+        return True
+    else:
+        return False
+
+def SendToSocket(client, data):
+    print("Sending data to server...")
+    client.send(data.encode())
+    response = ReceiveSocket(client)
+    print("Data recu du serveur")
+    return response
+
+def SendMessage(client, sender, recipient):
+    while True:
+        message = input("Message: ")
+        if message == "exit":
+            break
+
+        data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message}
+        SendToSocket(client, json.dumps(data))
+
+def SendFile(client, sender, recipient):
     filename = ''
     extension = ''
+
     while True:
         file = input("Entrez le nom du fichier (exit pour quitter): ")
-        
         if file == 'exit':
-            break
+            return
 
         for i in range(len(file)):
             if file[i] == '.':
@@ -95,176 +113,169 @@ def send_file(username):
 
         except FileNotFoundError:
             filename = ''
-            print("Fichier introuvable. Veuillez réessayer.")
+            return "Fichier introuvable. Veuillez réessayer."
     
     data = {'type': 'file', 'sender': sender, 'recipient': recipient, 'filename': filename, 'extension':extension, 'content': content}
 
-    client.send(json.dumps(data).encode())
+    return SendToSocket(client, json.dumps(data))
 
-    print("Fichier envoyé")
 
-def receive_file(data):
-    # Première étape: le client reçoit les données du fichier
-    print("Fichier en cours de transfert...")
-    # Deuxième étape: le client enregistre les données du fichier
-    filename = data['filename']
-    extension = data['extension']
-    content = data['content']
-
-    if extension == '.notxt':
-        file = filename
+def IsConnected(client, recipient):
+    data = {'type': 'is_connected', 'recipient': recipient}
+    data = json.dumps(data)
+    response = SendToSocket(client, data)
+    print(response)
+    if response == "OK":
+        print("Le destinataire est connecté")
+        return True
     else:
-        file = filename + extension
+        print("Le destinataire n'est pas connecté")
+        return False
 
-    match extension:
-        case '.txt':
-            with open(file, 'w') as f:
-                f.write(content)
-
-        case '.notxt':
-            with open(file, 'w') as f:
-                f.write(content)
+def ReceiveSocket(client):
+    try:
+        data = client.recv(1024).decode()
+        # si data est de type json alors on le load
+        try:
+            data = json.loads(data)
+        except:
+            pass
         
-        case '.png':
-            with open(file, 'wb') as f:
-                f.write(base64.b64decode(content))
-
-        case '.jpg':
-            with open(file, 'wb') as f:
-                f.write(base64.b64decode(content))
-
-        case '.jpeg':
-            with open(file, 'wb') as f:
-                f.write(base64.b64decode(content))
-
-        case '.pdf':
-            with open(file, 'wb') as f:
-                f.write(base64.b64decode(content))
-
-        case _:
-            with open(file, 'w') as f:
-                f.write(content)
-
-    os.replace(file, f"received_{file}")
-    print(f"Vous avez reçu un fichier de la part de {data['sender']} -> {filename}{extension}")
-
-def send_message(username):
-    recipient = input("Entrez le destinataire : ")
-    sender = username 
+        print(data)
+        
     
-    print("Entrez votre message (ou 'exit' pour quitter) :")
-    while True:
-        message = input(f"Pour {recipient}: ")
-        if message.lower() == 'exit':
-            os.system('cls' if os.name == 'nt' else 'clear')
-            break  # Quitter la conversation
-        try:
-            data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message, 'time': time.strftime("%H:%M:%S")}
-            client.send(json.dumps(data).encode())
-        except Exception as e:
-            print(f"Une erreur s'est produite lors de l'envoi du message: {e}")
-            break
-
-def receive_message(client):
-    while True:
-        try:
-            msg = client.recv(10000000).decode()
-            if msg:
-                # Modification ici pour formatter correctement les messages reçus
-                try:
-                    msg_data = json.loads(msg)
-                    if 'sender' in msg_data and 'message' in msg_data:
-                        time = str(msg_data['time'])
-                        formatted_msg = f"[{time}] - {msg_data['sender']} : {msg_data['message']}"
-                        print(formatted_msg)
-                    
-                    elif 'sender' in msg_data and 'filename' in msg_data:
-                        receive_file(msg_data)
-                    else:
-                        print(msg)
-
-                except json.JSONDecodeError:
-                    print(msg)
-            else:
-                break  # Si aucun message, cela signifie que le serveur est déconnecté
-        except Exception as e:
-            print(f"Une erreur s'est produite: {e}")
-            break
-
-# Connexion au serveur
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(('127.0.0.1', 12345))
-
-# Processus d'authentification
-print(" _____         __          __ _             _")
-print("|  __ \        \ \        / /| |           | |")
-print("| |__) | _   _  \ \  /\  / / | |__    __ _ | |_  ___")
-print("|  ___/ | | | |  \ \/  \/ /  | '_ \  / _` || __|/ __| ")
-print("| |     | |_| |   \  /\  /   | | | || (_| || |_|\__ \ ")
-print("|_|      \__, |    \/  \/    |_| |_| \__,_| \__||___/")
-print("          __/ |")
-print("         |___/")
-print("--------------------------------------------------------")
-while True:
+    except:
+        print("Erreur lors de la réception des données")
     
-    action = input("Voulez-vous vous connecter (login) ou créer un compte (register)? ")
-    username = input("Nom d'utilisateur: ")
-    password = input("Mot de passe: ")
+    print("J'envoie la putaing de data")
+    return data    
 
-    if action in ['login', 'register']:
-        data = {'type': action, 'username': username, 'password': password}
-        client.send(json.dumps(data).encode())
-        response = client.recv(1024).decode()
-        print(response)
-        if "Connexion réussie" in response or "Compte créé avec succès" in response:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print(" ____   _")
-            print("|  _ \ (_)")
-            print("| |_) | _   ___  _ __  __   __  ___  _ __   _   _   ___")
-            print("|  _ < | | / _ \| '_ \ \ \ / / / _ \| '_ \ | | | | / _ \ ")
-            print("| |_) || ||  __/| | | | \ V / |  __/| | | || |_| ||  __/")
-            print("|____/ |_| \___||_| |_|  \_/   \___||_| |_| \__,_| \___|")
-            print("--------------------------------------------------------")
-            break
 
-# Lancement du thread de réception des messages après authentification
-threading.Thread(target=receive_message, args=(client,)).start()
+def FirstMenu():
+    client = ConnexionServer()
 
-# Menu après authentification
-while True:
-    print("\nMenu :")
-    print("1. Envoyer un message")
-    print("2. Envoyer un fichier")
-    print("3. Voir qui est connecté")
-    print("4. Modifier son profil")
-    print("5. Se déconnecter")
-    choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
+    print(" _____         __          __ _             _         ")
+    print("|  __ \        \ \        / /| |           | |        ")
+    print("| |__) | _   _  \ \  /\  / / | |__    __ _ | |_  ___  ")
+    print("|  ___/ | | | |  \ \/  \/ /  | '_ \  / _` || __|/ __| ")
+    print("| |     | |_| |   \  /\  /   | | | || (_| || |_ \__ \ ")
+    print("|_|      \__, |    \/  \/    |_| |_| \__,_| \__||___/ ")
+    print("          __/ |                                       ")
+    print("         |___/                                        ")
+    print("------------------------------------------------------")
+    print("1. Se connecter")
+    print("2. S'inscrire")
+    print("3. Quitter")
+    while True:
+        choice = input("Votre choix: ")
+        match choice:
+            case "1":
+                login = Login(client)
+                print(login)
+                if login == True:
+                    print("Connexion...")
+                    SecondMenu(client)
+                else:
+                    print("Nom d'utilisateur ou mot de passe incorrect")
+
+            case "2":
+                register = Register(client)
+                if register == True:
+                    print("Connexion...")
+                    SecondMenu(client)
+                else:
+                    print("Nom d'utilisateur déjà utilisé")
+
+            case "3":
+                break
+
+            case _:
+                print("Choix invalide")
+
+def SecondMenu(client):
     os.system('cls' if os.name == 'nt' else 'clear')
+    print(" ____   _                                                ")
+    print("|  _ \ (_)                                               ")
+    print("| |_) | _   ___  _ __  __   __  ___  _ __   _   _   ___  ")
+    print("|  _ < | | / _ \| '_ \ \ \ / / / _ \| '_ \ | | | | / _ \ ")
+    print("| |_) || ||  __/| | | | \ V / |  __/| | | || |_| ||  __/ ")
+    print("|____/ |_| \___||_| |_|  \_/   \___||_| |_| \__,_| \___| ")
+    print("---------------------------------------------------------")
+    threading.Thread(target=ReceiveSocket, args=(client,)).start()
 
-    match choix :
-        case '1':
-            send_message(username)
+    # Menu après authentification
+    while True:
+        print("\nMenu :")
+        print("1. Envoyer un message")
+        print("2. Envoyer un fichier")
+        print("3. Voir qui est connecté")
+        print("4. Modifier son profil")
+        print("5. Se déconnecter")
+        choix = input("Que souhaitez-vous faire? (Entrez le numéro de l'option) : ")
+        os.system('cls' if os.name == 'nt' else 'clear')
 
-        case '2':
-            send_file(username)
+        match choix :
+            case '1':
+                recipient = input("Destinataire: ")
+                if  IsConnected(client, recipient) == False:
+                    print("Le destinataire n'est pas connecté")
+                else:
+                    SendMessage(client, dataUser[0], recipient)
 
-        case '3':
-            data = {'type': 'connected'}
-            client.send(json.dumps(data).encode())
-            sleep(3)
+            case '2':
+                recipient = input("Destinataire: ")
+                if IsConnected(client, recipient) == "False":
+                    print("Le destinataire n'est pas connecté")
+                else:
+                    SendFile(client, dataUser[0], recipient)
 
-        case '4':
-            newUpdate = update_profile(username)
-            if newUpdate != "Null":
-                username = newUpdate
+            case '3':
+                data = {'type': 'connected'}
+                print(SendToSocket(client, data))
 
-        case '5':
-            data = {'type': 'logout', 'sender': username}
-            client.send(json.dumps(data).encode())
-            print("Déconnexion...")
-            break
+            case '4':
+                print(UpdateProfileMenu(client))
 
-        case _:
-            print("Choix invalide. Veuillez réessayer.")
+            case '5':
+                data = {'type': 'logout', 'sender': dataUser[0]}
+                print(SendToSocket(client, data))
+                break
 
-client.close()
+            case _:
+                print("Choix invalide. Veuillez réessayer.")
+
+def UpdateProfileMenu(client):
+    print("1. Modifier son nom d'utilisateur")
+    print("2. Modifier son mot de passe")
+    print("3. Retour")
+    while True:
+        choice = input("Votre choix: ")
+        match choice:
+            case "1":
+                newUsername = input("Nouveau nom d'utilisateur: ")
+                data = {'type': 'update_username', 'username': dataUser[0], 'newUsername': newUsername}
+                if SendToSocket(client, data) == "OK":
+                    dataUser[0] = newUsername
+                    return "Nom d'utilisateur modifié"
+                
+                else:
+                    return "Nom d'utilisateur déjà utilisé"
+
+            case "2":
+                newPassword = input("Nouveau mot de passe: ")
+                data = {'type': 'update_password', 'username': dataUser[0], 'newPassword': newPassword}
+                if SendToSocket(client, data) == "OK":
+                    dataUser[0] = newUsername
+                    return "Password modifié"
+
+            case "3":
+                return
+
+            case _:
+                print("Choix invalide")
+
+def Main():
+    FirstMenu()
+
+if __name__ == '__main__':
+    Main()
