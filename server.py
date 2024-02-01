@@ -110,10 +110,14 @@ def UpdatePassword(username, password):
             return False
     
 def SendToClient(client, sender, recipient, message):
-    for client in clients:
-        if clients[client] == recipient:
-            data = {'type': 'message', 'sender': sender, 'message': message}
-            clients[recipient].send(json.dump(data).encode())
+    if recipient in clients :
+        Debug("Client found, preparing message...")
+        data = {'type': 'message', 'sender': sender, 'message': message}
+        try: 
+            clients[recipient].send(json.dumps(data).encode())
+            Debug(f"Message sent to {recipient}")
+        except Exception as e:
+            Debug("Error while sending message : ", e)
 
 def SendFile(client, sender, recipient, filename, extension, file):
     for client in clients:
@@ -148,9 +152,11 @@ def HandleClient(client):
                         client.send("KO".encode())
 
                 case "message":
+                    Debug("Received message request")
                     sender = data['sender']
                     recipient = data['recipient']
                     message = data['message']
+                    Debug(f"Sending message to {recipient}...")
                     SendToClient(client, sender, recipient, message)
 
                 case "update_username":

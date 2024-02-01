@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import threading
+import time
 
 dataUser = []
 
@@ -35,20 +36,15 @@ def Register(client):
     else:
         return False
 
-def SendToSocket(client, data):
-    print("Sending data to server...")
-    client.send(data.encode())
-    response = ReceiveSocket(client)
-    print("Data recu du serveur")
-    return response
-
 def SendMessage(client, sender, recipient):
+    threading.Thread(target=ReceiveMessage, args=(client,)).start()
     while True:
         message = input("Message: ")
         if message == "exit":
             break
-
-        data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message}
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        print(f"[{timestamp}] You : {message}")
+        data = {'type': 'message', 'sender': sender, 'recipient': recipient, 'message': message, 'time': timestamp}
         SendToSocket(client, json.dumps(data))
 
 def SendFile(client, sender, recipient):
@@ -119,37 +115,33 @@ def SendFile(client, sender, recipient):
 
     return SendToSocket(client, json.dumps(data))
 
+def SendToSocket(client, data):
+    client.send(data.encode())
+    return  ReceiveSocket(client)
 
 def IsConnected(client, recipient):
-    data = {'type': 'is_connected', 'recipient': recipient}
+    type = "is_connected"
+    data = {'type': type, 'recipient': recipient}
     data = json.dumps(data)
-    response = SendToSocket(client, data)
-    print(response)
-    if response == "OK":
-        print("Le destinataire est connecté")
+    if SendToSocket(client, data) == "OK":
         return True
     else:
-        print("Le destinataire n'est pas connecté")
         return False
-
+    
+def ReceiveMessage(client):
+    while True:
+        data = ReceiveSocket(client)
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        print(f"[{timestamp}] {data['sender']} : {data['message']}")
+        
 def ReceiveSocket(client):
+    data = client.recv(1024).decode()
+    # si data est de type json alors on le load
     try:
-        data = client.recv(1024).decode()
-        # si data est de type json alors on le load
-        try:
-            data = json.loads(data)
-        except:
-            pass
-        
-        print(data)
-        
-    
+        data = json.loads(data)
+        return data
     except:
-        print("Erreur lors de la réception des données")
-    
-    print("J'envoie la putaing de data")
-    return data    
-
+        return data
 
 def FirstMenu():
     client = ConnexionServer()
@@ -201,7 +193,6 @@ def SecondMenu(client):
     print("| |_) || ||  __/| | | | \ V / |  __/| | | || |_| ||  __/ ")
     print("|____/ |_| \___||_| |_|  \_/   \___||_| |_| \__,_| \___| ")
     print("---------------------------------------------------------")
-    threading.Thread(target=ReceiveSocket, args=(client,)).start()
 
     # Menu après authentification
     while True:
@@ -218,14 +209,14 @@ def SecondMenu(client):
             case '1':
                 recipient = input("Destinataire: ")
                 if  IsConnected(client, recipient) == False:
-                    print("Le destinataire n'est pas connecté")
+                    print(f"{recipient} n'est pas connecté")
                 else:
-                    SendMessage(client, dataUser[0], recipient)
+                    ChatRoom(client, recipient)
 
             case '2':
                 recipient = input("Destinataire: ")
                 if IsConnected(client, recipient) == "False":
-                    print("Le destinataire n'est pas connecté")
+                    print(f"{recipient}  n'est pas connecté")
                 else:
                     SendFile(client, dataUser[0], recipient)
 
@@ -243,6 +234,10 @@ def SecondMenu(client):
 
             case _:
                 print("Choix invalide. Veuillez réessayer.")
+
+def ChatRoom(client, recipient):
+    print("Chatroom avec " + recipient)
+    SendMessage(client, dataUser[0], recipient)
 
 def UpdateProfileMenu(client):
     print("1. Modifier son nom d'utilisateur")

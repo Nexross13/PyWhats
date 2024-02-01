@@ -18,6 +18,12 @@ Le but est de concevoir et implémenter un service de messagerie instantanée en
 
 
 ## UPDATES
+### Update 30/01/2024 -> V5.2
+**Refonte totale du code, voir branche new_version**
+Correction du bug précédent
+
+**Bugs**: envoie de message ok mais reception pas ok
+
 ### Update 30/01/2024 -> V5.1
 **Refonte totale du code, voir branche new_version**
 
